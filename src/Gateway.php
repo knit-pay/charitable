@@ -177,7 +177,6 @@ class Gateway extends Charitable_Gateway {
 		$payment->config_id = $config_id;
 
 		// Subscription
-		$payment->subscription_source_id = $processor->get_donation_data_value( 'donation_plan' );
 		$subscription                    = CharitableHelper::get_subscription( $processor, $payment->subscription_source_id, $payment->description, $payment->get_total_amount() );
 		if ( isset( $subscription ) ) {
 			$period = $subscription->new_period();
@@ -185,6 +184,7 @@ class Gateway extends Charitable_Gateway {
 				$payment->add_period( $period );
 			}
 			$payment->subscription = $subscription;
+			$payment->subscription_source_id = $processor->get_donation_data_value( 'donation_plan' );
 		}
 
 		try {
