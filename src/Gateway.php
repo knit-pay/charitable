@@ -38,14 +38,16 @@ class Gateway extends Charitable_Gateway {
 	 * Constructs and initialize an iDEAL gateway
 	 */
 	public function __construct() {
-		$this->name = __( 'Pronamic', 'pronamic_ideal' );
+		$this->name = __( 'Knit Pay', 'pronamic_ideal' );
 
 		$this->defaults = array(
-			'label' => __( 'Pronamic', 'pronamic_ideal' ),
+			'label' => __( 'Knit Pay', 'pronamic_ideal' ),
 		);
 
 		// @link https://github.com/Charitable/Charitable/blob/1.4.5/includes/gateways/class-charitable-gateway-paypal.php#L41-L44
 		$this->supports = array(
+			'recurring',
+			// TODO:: 'recurring_cancellation',
 			'1.3.0',
 		);
 	}
@@ -81,7 +83,7 @@ class Gateway extends Charitable_Gateway {
 				'type'     => 'content',
 				'title'    => '',
 				'priority' => 8,
-				'content'  => sprintf( '<p><em>%s</em></p>', __( "This payment method does not use a predefined payment method for the payment. Some payment providers list all activated payment methods for your account to choose from. Use payment method specific gateways (such as 'iDEAL') to let customers choose their desired payment method at checkout.", 'pronamic_ideal' ) ),
+				'content'  => sprintf( '<p><em>%s</em></p>', __( "This payment method does not use a predefined payment method for the payment. Some payment providers list all activated payment methods for your account to choose from. Use payment method specific gateways (such as 'Instamojo') to let customers choose their desired payment method at checkout.", 'pronamic_ideal' ) ),
 			);
 		}
 
@@ -131,6 +133,12 @@ class Gateway extends Charitable_Gateway {
 			return false;
 		}
 
+		$donation_period = $processor->get_donation_data_value( 'donation_period', false );
+		if ( ! empty( $donation_period ) && ! $gateway->supports( 'recurring' ) ) {
+			charitable_get_notices()->add_error( __( 'The selected payment gateway does not support recurring payments.  If you are a store owner, kindly choose another configuration.', 'knit-pay' ) );
+			return false;
+		}
+
 		// Data.
 		$user_data = $processor->get_donation_data_value( 'user' );
 
@@ -167,6 +175,17 @@ class Gateway extends Charitable_Gateway {
 
 		// Configuration.
 		$payment->config_id = $config_id;
+
+		// Subscription
+		$payment->subscription_source_id = $processor->get_donation_data_value( 'donation_plan' );
+		$subscription                    = CharitableHelper::get_subscription( $processor, $payment->subscription_source_id, $payment->description, $payment->get_total_amount() );
+		if ( isset( $subscription ) ) {
+			$period = $subscription->new_period();
+			if ( null !== $period ) {
+				$payment->add_period( $period );
+			}
+			$payment->subscription = $subscription;
+		}
 
 		try {
 			$payment = Plugin::start_payment( $payment );
